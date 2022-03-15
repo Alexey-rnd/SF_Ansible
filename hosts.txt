@@ -1,0 +1,9 @@
+[app]
+vm2
+vm3
+
+[database]
+vm1 pgs_ver=12 data_directory=/mnt/postgresql
+
+[web]
+vm1 pgs_ver=12 data_directory=/mnt/postgresql

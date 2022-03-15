@@ -1,0 +1,92 @@
+---
+- name:  Install docker to app group
+  hosts: app
+  gather_facts: yes
+  become: yes
+
+  tasks:
+  - name: Install docker Centos
+    yum:
+      name: 
+       - docker-ce 
+       - docker-ce-cli 
+       - containerd.io
+      state: present
+    when: ansible_facts.distribution == "CentOS"
+    notify:
+    - Start docker
+
+  - name: Install docker Debian
+    apt:
+      name: 
+       - docker-ce 
+       - docker-ce-cli 
+       - containerd.io
+      state: present
+      update_cache: yes
+    when: ansible_facts.distribution == "Ubuntu"
+    notify:
+    - Start docker
+
+  handlers:
+  - name: Start docker
+    ansible.builtin.service:
+      name:  docker
+      state: started
+      enabled: yes
+
+- name:  Install postgresql to database group
+  hosts: database
+  gather_facts: yes
+  become: yes
+
+  tasks:
+  - name: Install postgresql-{{ pgs_ver }} Centos
+    yum:
+      name: 
+       - postgresql-{{ pgs_ver }} 
+       - postgresql-contrib
+      state: present
+    when: ansible_facts.distribution == "CentOS"
+
+  - name: Install postgresql-{{ pgs_ver }} Debian
+    apt:
+      name: 
+       - postgresql-{{ pgs_ver }}
+       - postgresql-contrib
+      state: present
+      update_cache: yes
+    when: ansible_facts.distribution == "Ubuntu"
+
+  - name: Stop postgresql
+    ansible.builtin.service:
+      name:  postgresql
+      state: stopped
+      enabled: yes
+
+  - name: Create a {{ data_directory }} directory if it does not exist
+    ansible.builtin.file:
+      path: '{{ data_directory }}'
+      state: directory
+      owner: postgres
+      group: postgres
+      mode: '0644'
+
+  - name: Copy {{ data_directory }} file with owner and permissions
+    #ansible.builtin.copy:
+    shell: |
+          cp -r /var/lib/postgresql/{{ pgs_ver }} /mnt/postgresql 
+          chmod -R 0644 /mnt/postgresql
+          chown -R postgres:postgres /mnt/postgresql
+  - name: Set a new data_directory {{ data_directory }}
+    ansible.builtin.replace:
+      path:    /etc/postgresql/{{ pgs_ver }}/main/postgresql.conf
+      regexp:  'data_directory = '
+      replace: "data_directory = '{{ data_directory }}/{{ pgs_ver }}/main' #"
+
+  - name: Start postgresql
+    ansible.builtin.service:
+      name:  postgresql
+      state: started
+      enabled: yes
+	  
